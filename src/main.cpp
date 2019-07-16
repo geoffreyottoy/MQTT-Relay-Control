@@ -17,7 +17,10 @@
 #include <Dns.h>
 #include <PubSubClient.h>
 
+#include "mqtt_credentials.h"
 #include "relays.h"
+
+#define DEBUG
 
 // Update these with values suitable for your network.
 uint8_t mac[]    = {  0xDE, 0xED, 0xBA, 0xFE, 0xFE, 0xED };
@@ -42,9 +45,24 @@ PubSubClient client(ethClient);
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
+    // Move this to reconnect (in case IP has changed)
+    Serial.print(F("MQTT IP lookup:\n - using DNS IP:"));
+    Serial.println(Ethernet.dnsServerIP());
+    DNSClient dns;
+    dns.begin(Ethernet.dnsServerIP());
+    if(dns.getHostByName("postman.cloudmqtt.com", server) == 1) {
+      Serial.print(F(" - Found MQTT server IP: "));
+      Serial.println(server);
+    }
+    /*else{
+      Serial.println(F(": failed."));
+      while(1);
+    }*/
+
     Serial.print(F("Attempting MQTT connection... "));
     // Attempt to connect
-    if (client.connect("gardencontroller", "nycrtcth", "U1MlJWMWfbNJ")){
+    // #define MQTT_USER and MQTT_PASSKEY in mqtt_credentials.h
+    if (client.connect("gardencontroller", MQTT_USER, MQTT_PASSKEY)){
       Serial.println(F("connected."));
       // Once connected, publish an announcement...
       client.publish("outTopic","hello world");
@@ -61,10 +79,14 @@ void reconnect() {
 }
 
 void setup(){
+  // Start serial connection for debug output
   Serial.begin(115200);
+#ifdef DEBUG // no need to wait if we're not debugging
   while(!Serial){}
+#endif
   Serial.println(F("Setup:"));
 
+  // Start ethernet
   Serial.print(F(" - Ethernet "));
   Ethernet.begin(mac);
   if(Ethernet.hardwareStatus() == EthernetNoHardware){
@@ -76,20 +98,7 @@ void setup(){
     while(1);
   }
   Serial.print(F("local ip: "));
-  Serial.println(Ethernet.dnsServerIP());
-
-  // Move this to reconnect (in case IP has changed)
-  Serial.print(F(" - MQTT IP lookup"));
-  DNSClient dns;
-  dns.begin(Ethernet.dnsServerIP());
-  if(dns.getHostByName("postman.cloudmqtt.com", server) == 1) {
-    Serial.print(F("server ip: "));
-    Serial.println(server);
-  }
-  else{
-    Serial.println(F(": failed."));
-    while(1);
-  }
+  Serial.println(Ethernet.localIP());
 
   client.setServer(server, 11921);
   client.setCallback(callback);

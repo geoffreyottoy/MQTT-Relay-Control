@@ -20,14 +20,25 @@
 #include "mqtt_credentials.h"
 #include "relays.h"
 
+// uncomment if you don't want to wait for a serial terminal connection to
+// start program execution
 #define DEBUG
+// uncomment and change to your preferred fixed IP address if you want your
+// device to have a IP address
+#define FIXED_IP { 192, 168, 0, 56 }
 
-// Update these with values suitable for your network.
-uint8_t mac[]    = {  0xDE, 0xED, 0xBA, 0xFE, 0xFE, 0xED };
-IPAddress ip(192, 168, 0, 56);
-IPAddress server;
+// Ethernet MAC address
+//  -> generated with https://www.miniwebtool.com/mac-address-generator/
+uint8_t macAddress[] = {  0x97, 0x69, 0xCB, 0xF9, 0xEA, 0x17 };
+// Don't change here
+#ifdef FIXED_IP
+IPAddress localIP(FIXED_IP);
+#endif
+IPAddress mqttServerIP;
 
 Relays relays;
+EthernetClient ethClient;
+PubSubClient mqttClient(ethClient);
 
 void callback(char* topic, byte* payload, uint16_t length) {
   Serial.print("Message arrived [");
@@ -39,20 +50,17 @@ void callback(char* topic, byte* payload, uint16_t length) {
   Serial.println();
 }
 
-EthernetClient ethClient;
-PubSubClient client(ethClient);
-
 void reconnect() {
   // Loop until we're reconnected
-  while (!client.connected()) {
+  while (!mqttClient.connected()) {
     // Move this to reconnect (in case IP has changed)
     Serial.print(F("MQTT IP lookup:\n - using DNS IP:"));
     Serial.println(Ethernet.dnsServerIP());
     DNSClient dns;
     dns.begin(Ethernet.dnsServerIP());
-    if(dns.getHostByName("postman.cloudmqtt.com", server) == 1) {
+    if(dns.getHostByName("postman.cloudmqtt.com", mqttServerIP) == 1) {
       Serial.print(F(" - Found MQTT server IP: "));
-      Serial.println(server);
+      Serial.println(mqttServerIP);
     }
     /*else{
       Serial.println(F(": failed."));
@@ -62,15 +70,15 @@ void reconnect() {
     Serial.print(F("Attempting MQTT connection... "));
     // Attempt to connect
     // #define MQTT_USER and MQTT_PASSKEY in mqtt_credentials.h
-    if (client.connect("gardencontroller", MQTT_USER, MQTT_PASSKEY)){
+    if (mqttClient.connect("gardencontroller", MQTT_USER, MQTT_PASSKEY)){
       Serial.println(F("connected."));
       // Once connected, publish an announcement...
-      client.publish("outTopic","hello world");
+      mqttClient.publish("outTopic","hello world");
       // ... and resubscribe
-      client.subscribe("inTopic");
+      mqttClient.subscribe("inTopic");
     } else {
       Serial.print(F("failed, rc="));
-      Serial.print(client.state());
+      Serial.print(mqttClient.state());
       Serial.println(F("retrying in 5 seconds"));
       // Wait 5 seconds before retrying
       delay(5000);
@@ -86,9 +94,13 @@ void setup(){
 #endif
   Serial.println(F("Setup:"));
 
-  // Start ethernet
+  // Start Ethernet hardware
   Serial.print(F(" - Ethernet "));
-  Ethernet.begin(mac);
+#ifdef FIXED_IP
+  Ethernet.begin(macAddress, localIP);
+#else
+  Ethernet.begin(macAddress);
+#endif
   if(Ethernet.hardwareStatus() == EthernetNoHardware){
     Serial.println(F("fail: no hardware found."));
     while(1);
@@ -100,8 +112,9 @@ void setup(){
   Serial.print(F("local ip: "));
   Serial.println(Ethernet.localIP());
 
-  client.setServer(server, 11921);
-  client.setCallback(callback);
+  //
+  mqttClient.setServer(mqttServerIP, 11921);
+  mqttClient.setCallback(callback);
 
   // Allow the hardware to sort itself out
   delay(1500);
@@ -114,8 +127,8 @@ void setup(){
 }
 
 void loop(){
-  if(!client.connected()){
+  if(!mqttClient.connected()){
     reconnect();
   }
-  client.loop();
+  mqttClient.loop();
 }

@@ -1,0 +1,7 @@
+.pio
+build
+include
+libdeps
+test
+.clang_complete
+.gcc-flags.json

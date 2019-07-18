@@ -2,7 +2,7 @@
 build
 include
 libdeps
-src/mqtt_credentials.h
+src/mqtt_settings.h
 test
 .clang_complete
 .gcc-flags.json

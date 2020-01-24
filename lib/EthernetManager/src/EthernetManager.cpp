@@ -47,11 +47,11 @@ void EthernetManager::reconnect(bool reconnect){
     // reconnect = false -> first time setup 
     if(Ethernet.hardwareStatus() == EthernetNoHardware){
         DEBUG.println(F("fail: no hardware found."));
-        while(1); // to watchdog or not to watchdog?
+        return;
     }
     if(Ethernet.linkStatus() != LinkON){
         DEBUG.println(F("fail: link error."));
-        while(1); // same here
+        return;
     }
     DEBUG.print(F("local ip: "));
     DEBUG.println(Ethernet.localIP());

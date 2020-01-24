@@ -73,7 +73,7 @@ void mqttSubCallback(char* topic, byte* payload, uint16_t length) {
 void setup(){
   DEBUG.begin();
 
-  DEBUG.println(F("Setup:"));
+  DEBUG.println(F("Running setup:"));
   
   // Start Ethernet hardware
   DEBUG.print(F(" - Ethernet "));

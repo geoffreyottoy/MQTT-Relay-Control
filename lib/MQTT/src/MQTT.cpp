@@ -19,6 +19,7 @@
 #include <Dns.h>
 #include "MQTT.h"
 #include "SerialDebug.h"
+#include "DNSresolver.h"
 
 MQTT::MQTT(EthernetManager &wifi){
     this->ethManager = &wifi;
@@ -84,9 +85,12 @@ void MQTT::reconnect(void){
         DEBUG.print(F("Using DNS IP:"));
         DEBUG.println(Ethernet.dnsServerIP());
         // Create DNSClient
-        DNSClient dns;
+        //DNSClient dns;
+        DNSresolver dns(Ethernet.dnsServerIP());
         // Start client
-        dns.begin(Ethernet.dnsServerIP());
+        //IPAddress dnsIP = {8, 8, 8, 8};
+        //dns.begin(Ethernet.dnsServerIP());
+        //dns.begin(dnsIP);
         // Look-up broker IP
         if(dns.getHostByName(MQTT_BROKER, this->brokerIP) != 1) {
             DEBUG.println("DNS lookup failed!");

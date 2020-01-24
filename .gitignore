@@ -1,8 +1,8 @@
 .pio
+.vscode
 build
-include
 libdeps
-src/mqtt_settings.h
+src/settings.h
 test
 .clang_complete
 .gcc-flags.json

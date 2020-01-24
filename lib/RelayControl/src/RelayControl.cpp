@@ -1,9 +1,26 @@
+/*  
+ *   ___|             _|  _|                  _ \  |   |               
+ *  |      _ \  _ \  |   |    __| _ \ |   |  |   | __| __|  _ \  |   | 
+ *  |   |  __/ (   | __| __| |    __/ |   |  |   | |   |   (   | |   | 
+ * \____|\___|\___/ _|  _|  _|  \___|\__, | \___/ \__|\__|\___/ \__, | 
+ *                                   ____/                      ____/  
+ *
+ *         File: RelayControl.cpp
+ *      Created: 2020-01-24
+ *       Author: Geoffrey Ottoy
+ *      Version: 1.0
+ *
+ *  Description: Implementation of the RelayControl class that offers
+ *      an easy-to-use API to control the relays on the relay_board 
+ *      (take caution, this is hardware-specific!
+ *        -> see https://github.com/geoffreyottoy/MQTT-Relay-Control/blob/master/doc ).
+ *
+ */
 
 #include <Arduino.h>
 #include <Wire.h>
-#include <Adafruit_MCP23017.h>
 
-#include "relays.h"
+#include "RelayControl.h"
 
 // TODO: check pins (schematic;)
 static uint8_t relPinLUT[8]{

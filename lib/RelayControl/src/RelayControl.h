@@ -18,11 +18,12 @@
  */
 
 
-#ifndef __RELAYS_H__
-#define __RELAYS_H__
+#ifndef __RELAY_CONTROL_H__
+#define __RELAY_CONTROL_H__
 
 #include <Arduino.h>
 #include <Adafruit_MCP23017.h>
+#include "RelayParams.h"
 
 #define DEFAULT_ADDRESS   0
 #define NUM_RELAYS        8
@@ -44,9 +45,9 @@ typedef struct relay{
   uint8_t state;
 } Relay_t;
 
-class Relays{
+class RelayControl{
   public:
-    Relays(uint8_t address=DEFAULT_ADDRESS);
+    RelayControl(uint8_t address=DEFAULT_ADDRESS, uint8_t nrCircuits=4 /*, NVConfig config*/);
     void begin(void);
     void set(uint8_t * relay, uint8_t * state, uint8_t count);
     uint8_t get(uint8_t relay);
@@ -57,10 +58,11 @@ class Relays{
   private:
     Adafruit_MCP23017 * _mcp;
     uint8_t _address;
-    Relay_t _relays[NUM_RELAYS];
+
+    RelayParams * _params;
 
     void updatePins(void);
 };
 
 
-#endif /*__RELAYS_H__*/
+#endif /*__RELAY_CONTROL_H__*/

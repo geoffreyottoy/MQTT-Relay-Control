@@ -27,6 +27,7 @@ void SerialDebug::begin(unsigned long baud){
 #ifdef SERIAL_DEBUG_OUTPUT
     Serial.begin(baud);
     while(!Serial);
+    Serial.flush();
 #endif
 }
 

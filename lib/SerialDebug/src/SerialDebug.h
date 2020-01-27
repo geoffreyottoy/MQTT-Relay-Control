@@ -22,7 +22,7 @@
 #include <Arduino.h>
 #include "settings.h"
 
-#define DEBUG_BAUD  115200
+#define DEBUG_BAUD  57600
 
 class SerialDebug{
     public:

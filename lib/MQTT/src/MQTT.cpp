@@ -43,20 +43,20 @@ void MQTT::setSubCallback(MqttSubCallback cb){
 void MQTT::setSubTopic(const char topic[]){
     this->subTopic = (char *)malloc(strlen(topic) + 1);
     strcpy(this->subTopic, topic);
-    DEBUG.print("Sub. Topic: ");
-    DEBUG.println(this->subTopic);
+    Serial.print("Sub. Topic: ");
+    Serial.println(this->subTopic);
 }
 
 // retained message containing sensorlist
 void MQTT::setRetained(const char topic[], const char message[]){
     this->retTopic = (char *)malloc(strlen(topic) + 1);
     strcpy(this->retTopic, topic);
-    DEBUG.print("Ret. Topic: ");
-    DEBUG.println(this->retTopic);
+    Serial.print("Ret. Topic: ");
+    Serial.println(this->retTopic);
     this->retMessage = (char *)malloc(strlen(message) + 1);
     strcpy(this->retMessage, message);
-    DEBUG.print("Ret. Msg: ");
-    DEBUG.println(this->retMessage);
+    Serial.print("Ret. Msg: ");
+    Serial.println(this->retMessage);
 }
 
 void MQTT::publish(const char topic[], const char message[]){
@@ -79,41 +79,49 @@ void MQTT::reconnect(void){
     // This is a blocking loop
     // Might want to change dat later
     while (!this->mqttClient->connected()){
-        // Look-up MQTT broker IP
-        DEBUG.print(F("Looking up broker ip for "));
-        DEBUG.println(MQTT_BROKER);
-        DEBUG.print(F("Using DNS IP:"));
-        DEBUG.println(Ethernet.dnsServerIP());
-        // Create DNSClient
-        //DNSClient dns;
-        DNSresolver dns(Ethernet.dnsServerIP());
-        // Start client
-        //IPAddress dnsIP = {8, 8, 8, 8};
-        //dns.begin(Ethernet.dnsServerIP());
-        //dns.begin(dnsIP);
-        // Look-up broker IP
-        if(dns.getHostByName(MQTT_BROKER, this->brokerIP) != 1) {
-            DEBUG.println("DNS lookup failed!");
+        // Create DNSClient ...
+        DNSClient dns;
+
+        // to look up MQTT broker IP
+        Serial.print(F("Looking up broker ip for "));
+        Serial.println(MQTT_BROKER);
+        Serial.print(F("Using DNS IP:"));
+
+        // Start client ...
+#ifdef DNS_IP
+        IPAddress dnsIP = DNS_IP;
+        Serial.println(dnsIP);
+        dns.begin(dnsIP);
+#else
+        Serial.println(Ethernet.dnsServerIP());
+        dns.begin(Ethernet.dnsServerIP());
+#endif
+        // and look up broker IP
+        IPAddress brokerIP;
+        if(dns.getHostByName(MQTT_BROKER, brokerIP) != 1) {
+            Serial.println("DNS lookup failed!");
             return;
         }
+
         // Check if valid IP
-        if(this->brokerIP != INADDR_NONE){
-            DEBUG.print("MQTT server found at: ");
-            DEBUG.println(brokerIP);
+        if(brokerIP != INADDR_NONE){
+            Serial.print("MQTT server found at: ");
+            Serial.println(brokerIP);
         }
         else{
-            DEBUG.println("DNS lookup failed!");
+            Serial.println("DNS lookup failed!");
             return; 
         }
 
-        this->mqttClient->setServer(this->brokerIP, MQTT_PORT);
+        // Set MQTT IP and port.
+        this->mqttClient->setServer(brokerIP, MQTT_PORT);
 
-        DEBUG.print("Attempting MQTT connection... ");
         // Create a random client ID
         String clientId = "gardencontroller";
         // Attempt to connect
+        Serial.print("Attempting MQTT connection... ");
         if (this->mqttClient->connect(clientId.c_str(), MQTT_USER, MQTT_PASSKEY)){
-            DEBUG.println("connected");
+            Serial.println("connected.");
             // Once connected, publish an announcement...
             if((this->retMessage) != NULL && (this->retTopic != NULL)){
                 this->mqttClient->publish(this->retTopic, this->retMessage, true);
@@ -124,11 +132,12 @@ void MQTT::reconnect(void){
             }
         }
         else{
-            DEBUG.print("failed, rc=");
-            DEBUG.print(this->mqttClient->state());
-            DEBUG.println(" try again in 5 seconds");
+            Serial.print("failed, rc=");
+            Serial.print(this->mqttClient->state());
+            Serial.println(" try again in 5 seconds.");
             // Wait 5 seconds before retrying
             delay(5000);
+            return;
         }
     }
 }

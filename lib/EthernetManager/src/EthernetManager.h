@@ -19,14 +19,15 @@
 #define __ETHERNET_MANAGER_H__
 
 #include <Arduino.h>
-#include <Ethernet.h>
+#include <Ethernet3.h>
+#include "settings.h"
 
 /* The EthernetManager class maintains connection to an Ethernet Network.
  */
 class EthernetManager{
     public:
         EthernetManager(void);
-        void begin(void);
+        int begin(void);
         void reconnect(bool reconnect=false);
         bool isConnected(void);
 
@@ -35,6 +36,9 @@ class EthernetManager{
     protected:
         
     private:
+        byte macAddress[6] = MAC_ADDRESS;
+
+        int resetHW(void);
 };
 
 #endif /*__ETHERNET_MANAGER_H__*/

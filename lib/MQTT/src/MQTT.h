@@ -45,8 +45,6 @@ protected:
     
 
 private:
-    IPAddress brokerIP;
-
     char * subTopic;
     char * retTopic;
     char * retMessage;

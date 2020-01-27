@@ -2,7 +2,7 @@
 .vscode
 build
 libdeps
-GlobalIncludes/src/settings.h
+lib/GlobalIncludes/src/settings.h
 test
 .clang_complete
 .gcc-flags.json

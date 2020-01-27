@@ -16,45 +16,80 @@
  */
 
 #include "EthernetManager.h"
-#include "settings.h"
 #include "SerialDebug.h"
+
+#define ETHCS_CPIN      10 //W5500 CS
 
 EthernetManager::EthernetManager(){
 
 }
 
 
-void EthernetManager::begin(){
-    uint8_t macAddress[] = MAC_ADDRESS;
+int EthernetManager::begin(){
+    Serial.print("CS pin: ");
+    Serial.println(ETHCS_CPIN);
+    Ethernet.setCsPin(ETHCS_CPIN);
 
+    while(!this->resetHW()) delay(100);
+
+    Serial.print("MAC address: ");
+    for(uint8_t i=0; i<6; i++){
+        if(i) Serial.print('-');
+        Serial.print(macAddress[i], HEX);
+    }
+    Serial.println();
+    
     // Start ethernet operation
-#ifdef FIXED_IP
-    IPAddress localIP(FIXED_IP);
-    Ethernet.begin(macAddress, localIP);
+    uint8_t retries = 5;
+#ifdef LOCAL_IP
+    IPAddress localIP(LOCAL_IP);
+    while((Ethernet.begin(macAddress, localIP) == 0) && retries--){
 #else
-    Ethernet.begin(macAddress);
+    while((Ethernet.begin(macAddress) == 0) && retries--){
 #endif
+        Serial.println("Init failed. Trying reset.");
+        this->resetHW();
+    };
 
     // Check connection and retry if necessary
     this->reconnect();
+
+    return 0;
 }
 
 bool EthernetManager::isConnected(void){
-    return (Ethernet.linkStatus() == LinkON);
+    return (Ethernet.linkReport()[0] == 'L');
+}
+
+int EthernetManager::resetHW(void){
+    Serial.print("Soft reset ");
+    if(Ethernet.softreset()){
+         Serial.println("OK.");
+    }
+    else{
+         Serial.println("FAILED.");
+         return 0;
+    }
+    return 1;
 }
 
 void EthernetManager::reconnect(bool reconnect){
-    // reconnect = false -> first time setup 
-    if(Ethernet.hardwareStatus() == EthernetNoHardware){
-        DEBUG.println(F("fail: no hardware found."));
-        return;
+    if(!this->isConnected()){
+        if(reconnect){
+            this->resetHW();
+#ifdef LOCAL_IP
+            IPAddress localIP(LOCAL_IP);
+            Ethernet.begin(macAddress, localIP);
+#else
+            Ethernet.begin(macAddress);
+#endif
+        }
+        else{
+            Serial.println(F("FAILURE: link error."));
+        }
     }
-    if(Ethernet.linkStatus() != LinkON){
-        DEBUG.println(F("fail: link error."));
-        return;
-    }
-    DEBUG.print(F("local ip: "));
-    DEBUG.println(Ethernet.localIP());
+    Serial.print(F("Local IP: "));
+    Serial.println(Ethernet.localIP());
 }
 
 IPAddress EthernetManager::localIP(void){

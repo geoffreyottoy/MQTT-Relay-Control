@@ -23,45 +23,48 @@
 
 #include <Arduino.h>
 #include <Adafruit_MCP23017.h>
-#include "RelayParams.h"
 
 #define DEFAULT_ADDRESS   0
 #define NUM_RELAYS        8
 
-enum relay_names{
-  REL1=1,
-  REL2=2,
-  REL3=3,
-  REL4=4,
-  REL5=5,
-  REL6=6,
-  REL7=7,
-  REL8=8
-};
+#define MAX_NR_CIRCUITS   4
 
-typedef struct relay{
-  uint8_t name;
-  uint8_t pin;
-  uint8_t state;
-} Relay_t;
+typedef struct circuit{
+  /* data */
+  char * _name;
+  bool _enabled;
+  bool _onOff;
+  uint8_t _buttonPin;
+  uint8_t _ledPin;
+  uint8_t _relays[2];
+  bool _updated;
+} Circuit_t;
 
 class RelayControl{
   public:
-    RelayControl(uint8_t address=DEFAULT_ADDRESS, uint8_t nrCircuits=4 /*, NVConfig config*/);
+    RelayControl(uint8_t address=DEFAULT_ADDRESS, uint8_t nrCircuits=MAX_NR_CIRCUITS /*, NVConfig config*/);
+    
     void begin(void);
-    void set(uint8_t * relay, uint8_t * state, uint8_t count);
-    uint8_t get(uint8_t relay);
-    uint8_t toggle(uint8_t * relay);
+    void setName(uint8_t cIdx, const char * name);
+    void loop(void);
+
+    bool getStatus(char * statusStr);
+    bool updateStatus(char * statusStr);
 
     void printStates(void);
 
   private:
     Adafruit_MCP23017 * _mcp;
     uint8_t _address;
+    uint8_t _nrCircuits;
+    Circuit_t * _circuits;
 
-    RelayParams * _params;
+    void setOnOff(uint8_t cIdx, bool onOff);
+    void toggleOnOff(uint8_t cIdx);
+    void setEnabled(uint8_t cIdx, bool enable);
+    void toggleEnabled(uint8_t cIdx);
+    void updateRelays(uint8_t cIdx);
 
-    void updatePins(void);
 };
 
 

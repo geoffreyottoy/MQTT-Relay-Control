@@ -31,6 +31,7 @@
  */
 
 #include <Arduino.h>
+#include <SdFat.h>
 
 #include "settings.h"
 #include "SerialDebug.h"
@@ -41,10 +42,13 @@
 // Maximum length of an MQTT message
 #define MAX_MESSAGE_LEN 64
 
+#define SD_CS_PIN       4
+
+SdFat sd;
 EthernetManager net;
 MQTT mqtt(net);
 
-Relays relays;
+RelayControl rc;
 
 bool cmd_received = false;
 char cmd_message[MAX_MESSAGE_LEN];
@@ -72,23 +76,28 @@ void mqttSubCallback(char* topic, byte* payload, uint16_t length) {
  */
 void setup(){
   DEBUG.begin();
+  delay(5000);
 
-  DEBUG.println(F("Running setup:"));
-  
+  // DEBUG.begin();
+  Serial.println(F("Running setup...\n"));
+
   // Start Ethernet hardware
-  DEBUG.print(F(" - Ethernet "));
+  Serial.println(F("1. Ethernet"));
   net.begin();
+  Serial.println();
 
   // Allow the hardware to sort itself out
   delay(1500);
 
-  DEBUG.println(" - Relay board:");
-  relays.begin();
-  relays.printStates();
+  Serial.println(" - Relay board:");
+  rc.begin();
 
   // MQTT
-  mqtt.setSubCallback(mqttSubCallback);
+  Serial.println(F("2. MQTT"));
+  mqtt.setSubCallback((MqttSubCallback) mqttSubCallback);
+  mqtt.setSubTopic("circuits/update");
   mqtt.reconnect();
+  Serial.println();
 
   DEBUG.println("Setup complete.\n");
 }
@@ -106,6 +115,21 @@ void loop(){
   // Process any command that has been received
   if(cmd_received){
     cmd_received = false;
+    rc.updateStatus(cmd_message);
+  }
 
+  rc.loop();
+
+  // send MQTT status update
+  if(mqtt.isConnected()){
+    char statusStr[17];
+    memset(statusStr,0,17);
+    if(rc.getStatus(statusStr)){
+      Serial.println("new status");
+      Serial.println(statusStr);
+
+      // TODO: new retained message
+      mqtt.publishRetained("circuits/status", statusStr);
+    }
   }
 }

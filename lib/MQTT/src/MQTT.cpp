@@ -19,7 +19,6 @@
 #include <Dns.h>
 #include "MQTT.h"
 #include "SerialDebug.h"
-#include "DNSresolver.h"
 
 MQTT::MQTT(EthernetManager &wifi){
     this->ethManager = &wifi;
@@ -63,6 +62,10 @@ void MQTT::publish(const char topic[], const char message[]){
     this->mqttClient->publish(topic, message);
 }
 
+void MQTT::publishRetained(const char topic[], const char message[]){
+    this->mqttClient->publish(topic, message, true);
+}
+
 void MQTT::loop(void){
     this->mqttClient->loop();
 }
@@ -100,6 +103,7 @@ void MQTT::reconnect(void){
         IPAddress brokerIP;
         if(dns.getHostByName(MQTT_BROKER, brokerIP) != 1) {
             Serial.println("DNS lookup failed!");
+            delay(1000);
             return;
         }
 
@@ -110,6 +114,7 @@ void MQTT::reconnect(void){
         }
         else{
             Serial.println("DNS lookup failed!");
+            delay(1000);
             return; 
         }
 

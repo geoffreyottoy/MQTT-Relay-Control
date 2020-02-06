@@ -38,6 +38,7 @@ public:
     void reconnect(void);
     bool isConnected(void);
     void publish(const char topic[], const char message[]);
+    void publishRetained(const char topic[], const char message[]);
 
     void loop(void);
     

@@ -18,7 +18,8 @@
 #include "EthernetManager.h"
 #include "SerialDebug.h"
 
-#define ETHCS_CPIN      10 //W5500 CS
+#define ETH_CS_PIN      10 //W5500 CS
+#define ETH_RST_PIN     11 //W5500 CS
 
 EthernetManager::EthernetManager(){
 
@@ -27,8 +28,13 @@ EthernetManager::EthernetManager(){
 
 int EthernetManager::begin(){
     Serial.print("CS pin: ");
-    Serial.println(ETHCS_CPIN);
-    Ethernet.setCsPin(ETHCS_CPIN);
+    Serial.println(ETH_CS_PIN);
+    Ethernet.setCsPin(ETH_CS_PIN);
+    Serial.print("RST pin: ");
+    Serial.println(ETH_RST_PIN);
+    Ethernet.setRstPin(ETH_RST_PIN);
+    Ethernet.setRtCount(1);
+    Ethernet.setRtTimeOut(5000);
 
     while(!this->resetHW()) delay(100);
 
@@ -67,7 +73,8 @@ int EthernetManager::resetHW(void){
          Serial.println("OK.");
     }
     else{
-         Serial.println("FAILED.");
+         Serial.println("FAILED. Trying HW reset");
+         Ethernet.hardreset();
          return 0;
     }
     return 1;

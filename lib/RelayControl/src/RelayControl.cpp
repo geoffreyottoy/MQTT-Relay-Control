@@ -22,48 +22,11 @@
 
 #include "RelayControl.h"
 
-#define LONG_PRESS      3000 // ms
-#define SHORT_PRESS     1000 // ms
-#define BLINK_INTERVAL  1000 // ms
+#define LONG_PRESS      2000 // ms
+#define SHORT_PRESS      800 // ms
+#define BLINK_INTERVAL   500 // ms
 
-volatile bool btnPressed[MAX_NR_CIRCUITS];
-bool btnPresHandled[MAX_NR_CIRCUITS];
-unsigned long prevPress[MAX_NR_CIRCUITS];
 unsigned long prevMillis = 0;
-
-// pin interrupt callbacks
-void intPin0Callback(void){
-  btnPressed[0] = true;
-  Serial.println("cb0");
-}
-
-void intPin1Callback(void){
-  btnPressed[1] = true;
-  Serial.println("cb1");
-}
-
-void intPin2Callback(void){
-  btnPressed[2] = true;
-  Serial.println("cb2");
-}
-
-void intPin3Callback(void){
-  btnPressed[3] = true;
-  Serial.println("cb3");
-}
-
-// dummy callback for pin interrupt
-void nullCb(void){
-  return;
-}
-
-typedef void (*BtnPressCb)(void);
-BtnPressCb btnPressCallbacks[MAX_NR_CIRCUITS] = {
-  intPin0Callback,
-  intPin1Callback,
-  intPin2Callback,
-  intPin3Callback
-};
 
 RelayControl::RelayControl(uint8_t address, uint8_t nrCircuits /*, NVConfig config*/){
   this->_mcp = new Adafruit_MCP23017();
@@ -80,35 +43,41 @@ RelayControl::RelayControl(uint8_t address, uint8_t nrCircuits /*, NVConfig conf
     this->_circuits[0]._ledPin = 4;
     this->_circuits[0]._relays[0] = 0; // REL8
     this->_circuits[0]._relays[1] = 1; // REL6
+    //this->_circuits[0]._gpioAB = 0x3000; // REL6 & REL8
     
     this->setName(1, "Licht poortje");
     this->_circuits[1]._buttonPin = 1;
     this->_circuits[1]._ledPin = 5;
-    this->_circuits[0]._relays[0] = 10; // REL7
-    this->_circuits[0]._relays[1] = 11; // REL5
+    this->_circuits[1]._relays[0] = 10; // REL7
+    this->_circuits[1]._relays[1] = 11; // REL5
+    //this->_circuits[0]._gpioAB = 0x000C; // REL5 & REL7
 
     this->setName(2, "Licht terras");
-    this->_circuits[2]._buttonPin = 2;
+    this->_circuits[2]._buttonPin = 8;
     this->_circuits[2]._ledPin = 6;
-    this->_circuits[0]._relays[0] = 2; // REL4
-    this->_circuits[0]._relays[1] = 3; // REL2
+    this->_circuits[2]._relays[0] = 2; // REL4
+    this->_circuits[2]._relays[1] = 3; // REL2
+    //this->_circuits[0]._gpioAB = 0x0C00; // REL2 & REL4
 
     this->setName(3, "Licht planten");
-    this->_circuits[3]._buttonPin = 3;
+    this->_circuits[3]._buttonPin = 9;
     this->_circuits[3]._ledPin = 7;
-    this->_circuits[0]._relays[0] = 12; // REL3
-    this->_circuits[0]._relays[1] = 13; // REL1
+    this->_circuits[3]._relays[0] = 12; // REL3
+    this->_circuits[3]._relays[1] = 13; // REL1
+    //this->_circuits[0]._gpioAB = 0x0003; // REL1 & REL3
 
     for(uint8_t i=0; i<4; i++){
       this->_circuits[i]._enabled = false;
       this->_circuits[i]._onOff = false;
       this->_circuits[i]._updated = true;
+      this->_circuits[i]._btnReleased = true;
+      this->_circuits[i]._pressHandled = true;
     }
   }
 }
 
 void RelayControl::begin(void){
-  //this->_mcp->begin(_address);
+  this->_mcp->begin(_address);
   Serial.print("\tboard address: ");
   Serial.println(_address);
   Serial.print("\tboard relays: ");
@@ -118,20 +87,18 @@ void RelayControl::begin(void){
   for(uint8_t i=0; i<this->_nrCircuits; i++){
     // configure button
     pinMode(this->_circuits[i]._buttonPin, INPUT);
-    attachInterrupt(digitalPinToInterrupt(this->_circuits[i]._buttonPin), btnPressCallbacks[i], FALLING);
-    btnPressed[i] = false;
-    btnPresHandled[i] = true;
 
     // configure led
     pinMode(this->_circuits[i]._ledPin, OUTPUT);
-    digitalWrite(this->_circuits[i]._ledPin, HIGH); // led off
+    digitalWrite(this->_circuits[i]._ledPin, LOW); // led off
 
     // configure MCP
-    //this->_mcp->pinMode(this->_circuits[i]._relays[0], OUTPUT);
-    //this->_mcp->pinMode(this->_circuits[i]._relays[1], OUTPUT);
+    this->_mcp->pinMode(this->_circuits[i]._relays[0], OUTPUT);
+    this->_mcp->digitalWrite(this->_circuits[i]._relays[0], LOW);
+    this->_mcp->pinMode(this->_circuits[i]._relays[1], OUTPUT);
+    this->_mcp->digitalWrite(this->_circuits[i]._relays[1], LOW);
   }
-  // turn all circuits off
-  //this->_mcp->writeGPIOAB(0x0000);
+
 }
 
 void RelayControl::loop(void){
@@ -141,38 +108,54 @@ void RelayControl::loop(void){
   if(currentMillis - prevMillis > BLINK_INTERVAL){
     prevMillis = currentMillis;
     itsToggleTime = true;
+    this->_toggleState = !_toggleState;
   }
 
-
   for(uint8_t i=0; i<this->_nrCircuits; i++){
-    // check button press
-    if(btnPressed[i]){
+    // check button press -> falling edge
+    if(!digitalRead(this->_circuits[i]._buttonPin) && this->_circuits[i]._btnReleased){
       // register time
-      btnPressed[i] = false;
-      btnPresHandled[i] = false;
-      prevPress[i] = millis();
+      this->_circuits[i]._btnReleased = false;
+      this->_circuits[i]._pressHandled = false;
+      this->_circuits[i]._prevPress = millis();
+      Serial.print("falling edge: ");
+      Serial.println(i+1);
     }
 
-    // pin went high again (button released)
-    if(!btnPresHandled[i]){
-      if(digitalRead(this->_circuits[i]._buttonPin)){
-        if(millis() - prevPress[i] > LONG_PRESS){
-          Serial.print("Long press on btn");
-          Serial.println(i+1);
-          this->toggleEnabled(i);
-        }
-        if(millis() - prevPress[i] < SHORT_PRESS){
+    if(digitalRead(this->_circuits[i]._buttonPin)){
+      if(!this->_circuits[i]._btnReleased){
+        Serial.print("rising edge: ");
+        Serial.println(i+1);
+        // register time
+      }
+      this->_circuits[i]._btnReleased = true;
+    }
+
+    if(!this->_circuits[i]._pressHandled){
+      // check if long press 
+      // button doesn't need to be released to start action
+      if(millis() - this->_circuits[i]._prevPress > LONG_PRESS){
+        Serial.print("Long press on btn");
+        Serial.println(i+1);
+        this->toggleEnabled(i);
+        this->_circuits[i]._pressHandled = true;
+      }
+
+      // check if short press
+      // button needs to be released 
+      if(this->_circuits[i]._btnReleased){
+        if(millis() - this->_circuits[i]._prevPress < SHORT_PRESS){
           Serial.print("Short press on btn");
           Serial.println(i+1);
           this->toggleOnOff(i);
+          this->_circuits[i]._pressHandled = true;
         }
-        btnPresHandled[i] = true;
       }
     }
 
     // check if we need to blink the led (circuit enabled, but not on)
     if(itsToggleTime && this->_circuits[i]._enabled && !this->_circuits[i]._onOff ){
-      digitalWrite(this->_circuits[i]._ledPin, !digitalRead(this->_circuits[i]._ledPin));
+      digitalWrite(this->_circuits[i]._ledPin, this->_toggleState);
     }
 
   }
@@ -192,6 +175,7 @@ void RelayControl::toggleEnabled(uint8_t cIdx){
   this->_circuits[cIdx]._updated = true;
   if(!this->_circuits[cIdx]._enabled){
     this->_circuits[cIdx]._onOff = false;
+    digitalWrite(this->_circuits[cIdx]._ledPin, LOW);
     this->updateRelays(cIdx);
   }
 }
@@ -201,7 +185,7 @@ void RelayControl::setOnOff(uint8_t cIdx, bool onOff){
       this->_circuits[cIdx]._onOff = onOff;
       this->_circuits[cIdx]._updated = true;
       this->updateRelays(cIdx);
-      digitalWrite(this->_circuits[cIdx]._ledPin, this->_circuits[cIdx]._onOff ? LOW : HIGH);
+      digitalWrite(this->_circuits[cIdx]._ledPin, this->_circuits[cIdx]._onOff ? HIGH : LOW);
   }
 }
 
@@ -210,12 +194,13 @@ void RelayControl::toggleOnOff(uint8_t cIdx){
       this->_circuits[cIdx]._onOff = !this->_circuits[cIdx]._onOff;
       this->_circuits[cIdx]._updated = true;
       this->updateRelays(cIdx);
-      digitalWrite(this->_circuits[cIdx]._ledPin, this->_circuits[cIdx]._onOff ? LOW : HIGH);
+      digitalWrite(this->_circuits[cIdx]._ledPin, this->_circuits[cIdx]._onOff ? HIGH : LOW);
   }
 }
 
 void RelayControl::updateRelays(uint8_t cIdx){
   uint8_t state;
+
   if(this->_circuits[cIdx]._onOff){
     state = HIGH;
   }
@@ -223,8 +208,8 @@ void RelayControl::updateRelays(uint8_t cIdx){
     state = LOW;
   }
 
-  //this->_mcp->digitalWrite(this->_circuits[cIdx]._relays[0], state);
-  //this->_mcp->digitalWrite(this->_circuits[cIdx]._relays[1], state);
+  this->_mcp->digitalWrite(this->_circuits[cIdx]._relays[0], state);
+  this->_mcp->digitalWrite(this->_circuits[cIdx]._relays[1], state);
 }
 
 void RelayControl::printStates(void){
@@ -320,4 +305,29 @@ bool RelayControl::updateStatus(char * statusStr){
   }
 
   return true;
+}
+
+void RelayControl::readySequence(void){
+  for(uint8_t i=0; i<this->_nrCircuits; i++){
+    digitalWrite(this->_circuits[i]._ledPin, HIGH);
+    delay(500);
+    digitalWrite(this->_circuits[i]._ledPin, LOW);
+    delay(500);
+  }
+
+  for(uint8_t i=0; i<this->_nrCircuits; i++){
+    digitalWrite(this->_circuits[i]._ledPin, HIGH);
+  }
+  delay(500);
+  for(uint8_t i=0; i<this->_nrCircuits; i++){
+    digitalWrite(this->_circuits[i]._ledPin, LOW);
+  }
+  delay(500);
+  for(uint8_t i=0; i<this->_nrCircuits; i++){
+    digitalWrite(this->_circuits[i]._ledPin, HIGH);
+  }
+  delay(500);
+  for(uint8_t i=0; i<this->_nrCircuits; i++){
+    digitalWrite(this->_circuits[i]._ledPin, LOW);
+  }
 }

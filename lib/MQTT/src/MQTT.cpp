@@ -19,6 +19,7 @@
 #include <Dns.h>
 #include "MQTT.h"
 #include "SerialDebug.h"
+#include "settings.h"
 
 MQTT::MQTT(EthernetManager &wifi){
     this->ethManager = &wifi;
@@ -88,7 +89,7 @@ void MQTT::reconnect(void){
         // to look up MQTT broker IP
         Serial.print(F("Looking up broker ip for "));
         Serial.println(MQTT_BROKER);
-        Serial.print(F("Using DNS IP:"));
+        Serial.print(F("Using DNS IP: "));
 
         // Start client ...
 #ifdef DNS_IP

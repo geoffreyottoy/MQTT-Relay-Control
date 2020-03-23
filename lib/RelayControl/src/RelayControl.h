@@ -37,7 +37,11 @@ typedef struct circuit{
   uint8_t _buttonPin;
   uint8_t _ledPin;
   uint8_t _relays[2];
+  //uint16_t _gpioAB;
   bool _updated;
+  bool _btnReleased;
+  bool _pressHandled;
+  unsigned long _prevPress;
 } Circuit_t;
 
 class RelayControl{
@@ -53,11 +57,15 @@ class RelayControl{
 
     void printStates(void);
 
+    void readySequence(void);
+
   private:
     Adafruit_MCP23017 * _mcp;
     uint8_t _address;
     uint8_t _nrCircuits;
     Circuit_t * _circuits;
+
+    uint8_t _toggleState = LOW;
 
     void setOnOff(uint8_t cIdx, bool onOff);
     void toggleOnOff(uint8_t cIdx);

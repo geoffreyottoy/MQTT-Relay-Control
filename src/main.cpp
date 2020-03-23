@@ -75,7 +75,7 @@ void mqttSubCallback(char* topic, byte* payload, uint16_t length) {
 /* Setup for main operation.
  */
 void setup(){
-  DEBUG.begin();
+  Serial.begin(57600);
   delay(5000);
 
   // DEBUG.begin();
@@ -98,6 +98,8 @@ void setup(){
   mqtt.setSubTopic("circuits/update");
   mqtt.reconnect();
   Serial.println();
+
+  rc.readySequence();
 
   DEBUG.println("Setup complete.\n");
 }

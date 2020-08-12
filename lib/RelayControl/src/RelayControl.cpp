@@ -29,7 +29,9 @@
 unsigned long prevMillis = 0;
 
 RelayControl::RelayControl(uint8_t address, uint8_t nrCircuits /*, NVConfig config*/){
+#ifndef DISABLE_MCP
   this->_mcp = new Adafruit_MCP23017();
+#endif
   this->_address = address;
   this->_nrCircuits = nrCircuits;
   
@@ -77,7 +79,9 @@ RelayControl::RelayControl(uint8_t address, uint8_t nrCircuits /*, NVConfig conf
 }
 
 void RelayControl::begin(void){
+#ifndef DISABLE_MCP
   this->_mcp->begin(_address);
+#endif
   Serial.print("\tboard address: ");
   Serial.println(_address);
   Serial.print("\tboard relays: ");
@@ -93,10 +97,12 @@ void RelayControl::begin(void){
     digitalWrite(this->_circuits[i]._ledPin, LOW); // led off
 
     // configure MCP
+#ifndef DISABLE_MCP
     this->_mcp->pinMode(this->_circuits[i]._relays[0], OUTPUT);
     this->_mcp->digitalWrite(this->_circuits[i]._relays[0], LOW);
     this->_mcp->pinMode(this->_circuits[i]._relays[1], OUTPUT);
     this->_mcp->digitalWrite(this->_circuits[i]._relays[1], LOW);
+#endif
   }
 
 }
@@ -208,8 +214,10 @@ void RelayControl::updateRelays(uint8_t cIdx){
     state = LOW;
   }
 
+#ifndef DISABLE_MCP
   this->_mcp->digitalWrite(this->_circuits[cIdx]._relays[0], state);
   this->_mcp->digitalWrite(this->_circuits[cIdx]._relays[1], state);
+#endif
 }
 
 void RelayControl::printStates(void){
